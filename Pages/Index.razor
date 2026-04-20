@@ -1,0 +1,335 @@
+@page "/"
+@using AttachmentSim.Models
+@using AttachmentSim.Services
+@inject SimulationService Sim
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Attachment Sim</PageTitle>
+
+<div class="sim-root">
+
+  <div class="sim-header">
+    <div class="sim-tagline">BOWLBY · AINSWORTH · CORTICO-LIMBIC SYSTEM</div>
+    <div class="sim-title">ATTACHMENT SIM · FOUR-REGION BRAIN</div>
+    <div class="sim-phase @(IsDistressed ? "distressed" : "")">
+      @(IsDistressed ? "⚠ YOUR CHILD NEEDS YOU — CLICK THEM" : Sim.Phase)
+    </div>
+  </div>
+
+  <div class="sim-body">
+
+    <div class="sim-canvas-col">
+      <canvas id="simCanvas" width="660" height="400"
+              @onclick="OnCanvasClick" @onclick:preventDefault="true"
+              style="cursor:pointer;" />
+
+      @if (_activeTask != null)
+      {
+        var meta = RegionDefs.Meta[_activeTask.Region];
+        <div class="task-card" style="border-color:@(meta.Color)44;background:@(meta.Color)0d;">
+          <div class="task-region" style="color:@meta.Color;">
+            @meta.Label.ToUpper() · @_activeTask.Label
+          </div>
+          <div class="task-prompt">@_activeTask.Prompt</div>
+          <div class="task-options">
+            @for (int i = 0; i < _activeTask.Options.Length; i++)
+            {
+              int idx = i;
+              <button class="task-btn" @onclick="() => AnswerTask(idx)">
+                <span style="color:@meta.Color;margin-right:4px;">@(i+1).</span>@_activeTask.Options[i]
+              </button>
+            }
+          </div>
+          @if (_lastResultText != null)
+          {
+            <div class="task-result @(_lastCorrect?"correct":"wrong")">
+              @(_lastCorrect?"✓ Correct — ":"✗ Wrong — ")@_lastResultText
+            </div>
+          }
+        </div>
+      }
+      else if (_lastResultText != null)
+      {
+        <div class="task-result-banner @(_lastCorrect?"correct":"wrong")">
+          @(_lastCorrect?"✓ ":"✗ ")@_lastResultText
+        </div>
+      }
+      else
+      {
+        <div class="sim-hint">
+          @(Sim.Agents.Any(a=>a.Gen==1&&a.Stage==Stage.Child)
+            ? "Childhood tasks will appear here — train your child's brain regions"
+            : "Click agents to inspect · respond to infant distress when they pulse")
+        </div>
+      }
+    </div>
+
+    <div class="sim-panel">
+
+      <div class="panel-box">
+        <div class="panel-label">CONTROLS</div>
+        <div class="btn-row">
+          <button class="ctrl-btn @(Sim.Running?"pause":"resume")" @onclick="ToggleRunning">
+            @(Sim.Running?"⏸ PAUSE":"▶ RESUME")
+          </button>
+          <button class="ctrl-btn reset" @onclick="ResetSim">↺ RESTART</button>
+        </div>
+        <div class="sim-hint">Gen @Sim.CurrentGen · Tick @_tick</div>
+      </div>
+
+      <div class="panel-box">
+        <div class="panel-label">
+          @(SelAgent!=null ? $"GEN {SelAgent.Gen} · {SelAgent.Stage.ToString().ToUpper()} · BRAIN REGIONS" : "SELECT AN AGENT")
+        </div>
+
+        @if (SelAgent != null)
+        {
+          <svg width="290" height="200" style="display:block;overflow:visible;margin-bottom:6px;">
+            @foreach (var (from,to,key,baseW) in RegionDefs.InterBase)
+            {
+              var fp=RegionPos(from); var tp=RegionPos(to);
+              double w=SelAgent.Brain.Inter[key];
+              bool inhib=w<0; double str=Math.Abs(w);
+              <line x1="@fp.x" y1="@fp.y" x2="@tp.x" y2="@tp.y"
+                    stroke="@(inhib?"#f87171":"#60efbc")"
+                    stroke-width="@Math.Min(3,str*1.2).ToString("F1")"
+                    stroke-opacity="@((0.15+str*0.35).ToString("F2"))"
+                    stroke-dasharray="@(inhib?"4,3":"none")" />
+            }
+            @foreach (RegionName rn in Enum.GetValues<RegionName>())
+            {
+              var pos=RegionPos(rn); var meta=RegionDefs.Meta[rn];
+              var reg=SelAgent.Brain.Regions[rn];
+              double avgAct=reg.AvgActivation(), t=reg.Training, R=22+t*6;
+              double circ=2*Math.PI*(R+4);
+              <g>
+                <circle cx="@pos.x" cy="@pos.y" r="@((R+4).ToString("F1"))"
+                        fill="none" stroke="@meta.Color" stroke-width="1.5"
+                        stroke-opacity="@((0.2+t*0.5).ToString("F2"))"
+                        stroke-dasharray="@((t*circ/6).ToString("F1")) @(((1-t)*circ/6).ToString("F1"))" />
+                <circle cx="@pos.x" cy="@pos.y" r="@R.ToString("F1")"
+                        fill="@meta.Color" fill-opacity="@((0.08+avgAct*0.25).ToString("F2"))"
+                        stroke="@meta.Color" stroke-width="1.5"
+                        stroke-opacity="@((0.4+avgAct*0.5).ToString("F2"))" />
+                @for (int i=0;i<RegionNet.N;i++)
+                {
+                  double act=reg.Output[i], ang=(double)i/RegionNet.N*Math.PI*2;
+                  double nx=pos.x+Math.Cos(ang)*12, ny=pos.y+Math.Sin(ang)*12;
+                  <circle cx="@nx.ToString("F1")" cy="@ny.ToString("F1")"
+                          r="@((2+act*2.5).ToString("F1"))" fill="@meta.Color"
+                          fill-opacity="@((0.2+act*0.8).ToString("F2"))" />
+                }
+                <text x="@pos.x" y="@((pos.y+R+15).ToString("F1"))"
+                      text-anchor="middle" font-size="8" fill="@meta.Color" fill-opacity="0.8">
+                  @meta.Label
+                </text>
+                <text x="@pos.x" y="@((pos.y+R+25).ToString("F1"))"
+                      text-anchor="middle" font-size="7" fill="@meta.Color" fill-opacity="0.45">
+                  @Math.Round(t*100)% trained
+                </text>
+              </g>
+            }
+            @{ var chemLabels=new[]{("DA","#a78bfa"),("COR","#f87171"),("OXY","#60efbc"),("SER","#60a5fa")}; }
+            @for (int ci=0;ci<4;ci++)
+            {
+              double val=SelAgent.Brain.Chem[ci]; var (lbl,col)=chemLabels[ci]; int ox=ci*70+5;
+              <g transform="translate(@ox,172)">
+                <rect x="0" y="0" width="60" height="6" rx="2" fill="#ffffff0a"/>
+                <rect x="0" y="0" width="@((val*60).ToString("F1"))" height="6" rx="2" fill="@col" opacity="0.85"/>
+                <text x="0" y="-3" font-size="7" fill="@col" opacity="0.75">@lbl @Math.Round(val*100)%</text>
+              </g>
+            }
+            <text x="145" y="14" text-anchor="middle" font-size="9" font-weight="bold"
+                  fill="@StyleMeta.Get(SelAgent.AttachmentStyle).Color">
+              @StyleMeta.Get(SelAgent.AttachmentStyle).Label
+            </text>
+          </svg>
+
+          @if (SelAgent.Stage != Stage.Infant)
+          {
+            <div class="panel-label" style="margin-top:6px;">INTERNAL WORKING MODEL</div>
+            @foreach (var (name,val,col) in new[]{
+              ("Self-worth",   SelAgent.Iwm.SelfWorth,   "#f9a03f"),
+              ("Other trust",  SelAgent.Iwm.OtherWorth,  "#60efbc"),
+              ("World safety", SelAgent.Iwm.WorldSafety, "#7eb8f7")})
+            {
+              <div class="iwm-row">
+                <div class="iwm-labels">
+                  <span style="color:#ffffff40;">@name</span>
+                  <span style="color:@col;">@Math.Round(val*100)%</span>
+                </div>
+                <div class="bar-track"><div class="bar-fill" style="width:@(val*100)%;background:@col;"></div></div>
+              </div>
+            }
+          }
+
+          @if (SelAgent.Stage == Stage.Infant)
+          {
+            double pct=(double)SelAgent.Age/Sim.CriticalPeriod*100;
+            <div class="iwm-row" style="margin-top:8px;">
+              <div class="iwm-labels">
+                <span style="color:#ffffff40;">Critical period</span>
+                <span style="color:#60efbc;">@Math.Round(pct)%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:@pct%;background:#60efbc;"></div></div>
+            </div>
+            <div class="sim-hint" style="margin-top:4px;">
+              Responses: @SelAgent.Record.Count(r=>r.Responded)/@SelAgent.Record.Count
+            </div>
+          }
+        }
+      </div>
+
+      <div class="panel-box">
+        <div class="panel-label">BRAIN REGIONS</div>
+        @foreach (RegionName rn in Enum.GetValues<RegionName>())
+        {
+          var meta=RegionDefs.Meta[rn];
+          double t=SelAgent?.Brain.Regions[rn].Training??0;
+          <div class="region-row">
+            <div class="region-dot" style="background:@meta.Color;"></div>
+            <div class="region-info">
+              <div class="region-name-row">
+                <span style="color:@meta.Color;">@meta.Label</span>
+                <span style="color:#ffffff33;">@Math.Round(t*100)%</span>
+              </div>
+              <div class="region-desc">@meta.Desc</div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="panel-box">
+        <div class="panel-label">LINEAGE · @Sim.Lineage.Count GEN@(Sim.Lineage.Count!=1?"S":"")</div>
+        @if (!Sim.Lineage.Any())
+        {
+          <div class="sim-hint" style="text-align:center;padding:8px 0;">generations will appear here...</div>
+        }
+        @foreach (var entry in Sim.Lineage)
+        {
+          var si=StyleMeta.Get(entry.Style);
+          int pct2=entry.Total>0?(int)Math.Round((double)entry.Responded/entry.Total*100):0;
+          <div class="lineage-row">
+            <div class="lineage-dot" style="background:@si.Color;"></div>
+            <div style="flex:1;">
+              <div class="lineage-top">
+                <span style="color:@si.Color;font-weight:bold;">Gen @entry.Gen @(entry.IsPlayer?"(you)":"")</span>
+                <span style="color:#ffffff33;">@si.Short</span>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:2px;">
+                @foreach (RegionName rn in Enum.GetValues<RegionName>())
+                {
+                  var rm=RegionDefs.Meta[rn];
+                  double tr=entry.RegionTraining.TryGetValue(rn,out var v)?v:0;
+                  <div style="flex:1;height:3px;background:#ffffff0a;border-radius:1px;overflow:hidden;">
+                    <div style="width:@(tr*100)%;height:100%;background:@rm.Color;opacity:0.75;"></div>
+                  </div>
+                }
+              </div>
+              <div class="lineage-detail">@pct2% response · @entry.Style.ToString().ToLower()</div>
+            </div>
+          </div>
+        }
+        @if (Sim.Lineage.Count >= 2)
+        {
+          var last=Sim.Lineage[^1]; var prev=Sim.Lineage[^2];
+          <div class="lineage-note">
+            @(last.Style==prev.Style?$"↻ {last.Style} transmitted":$"⇉ {prev.Style} → {last.Style}")
+          </div>
+        }
+      </div>
+
+    </div>
+  </div>
+
+  <div class="sim-footer">
+    LIF NEURONS · HEBBIAN PLASTICITY · 4-REGION CORTICO-LIMBIC · HPA AXIS · AINSWORTH CLASSIFICATION
+  </div>
+</div>
+
+@code {
+  private System.Threading.Timer? _timer;
+  private int _tick = 0;
+  private SimTask? _activeTask;
+  private string? _lastResultText;
+  private bool _lastCorrect;
+  private System.Threading.Timer? _resultClear;
+
+  protected override void OnAfterRender(bool firstRender)
+  {
+    if (firstRender)
+    {
+      _timer = new System.Threading.Timer(_ =>
+      {
+        Sim.Tick_();
+        _tick++;
+        _activeTask = Sim.GetActiveTask();
+        InvokeAsync(async () => { await DrawCanvas(); StateHasChanged(); });
+      }, null, 0, 50);
+    }
+  }
+
+  private async Task DrawCanvas()
+  {
+    var drawData = new
+    {
+      agents = Sim.Agents.Where(a=>a.Stage!=Stage.Gone).Select(a => new
+      {
+        id=a.Id, x=a.X, y=a.Y,
+        stage=a.Stage.ToString().ToLower(),
+        styleColor=StyleMeta.Get(a.AttachmentStyle).Color,
+        gen=a.Gen, happiness=a.Happiness, opacity=a.Opacity,
+        hasDistress=a.Distress!=null,
+        hasTask=a.CurrentTask!=null,
+        taskColor=a.CurrentTask!=null?RegionDefs.Meta[a.CurrentTask.Region].Color:"",
+        isSelected=a.Id==Sim.SelectedId,
+        trail=a.Trail.Select(t=>new{x=t.X,y=t.Y}).ToArray(),
+      }).ToArray(),
+      tick=_tick,
+    };
+    await JS.InvokeVoidAsync("attachmentSim.draw", drawData);
+  }
+
+  private bool IsDistressed =>
+    Sim.CurrentInfant?.Distress!=null && Sim.CurrentInfant.Gen==1;
+
+  private Agent? SelAgent => Sim.SelectedAgent;
+
+  private void ToggleRunning() => Sim.Running = !Sim.Running;
+  private void ResetSim() { Sim.Reset(); _activeTask=null; _lastResultText=null; _tick=0; }
+
+  private void AnswerTask(int idx)
+  {
+    if(_activeTask==null) return;
+    _lastCorrect=idx==_activeTask.Correct;
+    _lastResultText=_activeTask.Hint;
+    Sim.QueueTaskAnswer(idx);
+    _activeTask=null;
+    _resultClear?.Dispose();
+    _resultClear=new System.Threading.Timer(_=>{
+      _lastResultText=null; InvokeAsync(StateHasChanged);
+    },null,2500,Timeout.Infinite);
+  }
+
+  private async Task OnCanvasClick(MouseEventArgs e)
+  {
+    var rect=await JS.InvokeAsync<BoundingRect>("attachmentSim.getBounds");
+    double mx=(e.ClientX-rect.Left)*(660.0/rect.Width);
+    double my=(e.ClientY-rect.Top)*(400.0/rect.Height);
+    Sim.SelectNearest(mx,my);
+  }
+
+  private (double x, double y) RegionPos(RegionName rn) => rn switch
+  {
+    RegionName.Amygdala    => (70,  65),
+    RegionName.Hippocampus => (210, 65),
+    RegionName.Pfc         => (70,  155),
+    RegionName.Acc         => (210, 155),
+    _                      => (140, 110),
+  };
+
+  public void Dispose() { _timer?.Dispose(); _resultClear?.Dispose(); }
+
+  public record BoundingRect(double Left, double Top, double Width, double Height);
+}

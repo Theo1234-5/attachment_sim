@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:#04060e;}
+.sim-root{min-height:100vh;background:#04060e;font-family:'Share Tech Mono','Courier New',monospace;color:#e2e8f0;display:flex;flex-direction:column;align-items:center;padding:12px 8px;gap:9px;}
+.sim-header{text-align:center;}
+.sim-tagline{font-size:8px;letter-spacing:0.45em;color:#ffffff18;margin-bottom:2px;}
+.sim-title{font-size:17px;font-weight:bold;letter-spacing:0.18em;background:linear-gradient(90deg,#60efbc,#60a5fa,#e07bda);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sim-phase{display:inline-block;font-size:9px;color:#ffffff33;margin-top:5px;padding:3px 10px;border:1px solid #ffffff0f;border-radius:20px;}
+.sim-phase.distressed{color:#ff6b6b;border-color:#ff6b6b44;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+.sim-body{display:flex;gap:9px;align-items:flex-start;flex-wrap:wrap;justify-content:center;}
+.sim-canvas-col{display:flex;flex-direction:column;gap:8px;}
+canvas#simCanvas{border:1px solid #ffffff0d;border-radius:8px;display:block;max-width:100%;}
+.task-card{border:1px solid;border-radius:8px;padding:10px 12px;animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.task-region{font-size:8px;letter-spacing:0.15em;margin-bottom:6px;}
+.task-prompt{font-size:10px;color:#ffffffcc;margin-bottom:10px;line-height:1.6;}
+.task-options{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.task-btn{background:#ffffff0a;border:1px solid #ffffff18;border-radius:5px;padding:5px 8px;font-size:9px;font-family:inherit;color:#ffffffaa;cursor:pointer;text-align:left;line-height:1.4;}
+.task-btn:hover{background:#ffffff18;}
+.task-result{margin-top:7px;font-size:9px;line-height:1.5;}
+.task-result-banner{padding:8px 12px;border-radius:8px;font-size:9px;line-height:1.6;border:1px solid;}
+.correct{color:#60efbc;background:#60efbc14;border-color:#60efbc33;}
+.wrong{color:#f87171;background:#f8717114;border-color:#f8717133;}
+.sim-panel{display:flex;flex-direction:column;gap:8px;width:310px;}
+.panel-box{border:1px solid #ffffff0f;border-radius:8px;padding:10px 13px;background:#080b18;}
+.panel-label{font-size:8px;letter-spacing:0.2em;color:#ffffff26;margin-bottom:6px;display:block;}
+.btn-row{display:flex;gap:6px;margin-bottom:6px;}
+.ctrl-btn{flex:1;background:transparent;border-radius:4px;padding:5px 0;font-size:9px;font-family:inherit;cursor:pointer;letter-spacing:0.08em;}
+.ctrl-btn.pause{border:1px solid #60a5fa55;color:#60a5fa;}
+.ctrl-btn.resume{border:1px solid #60efbc55;color:#60efbc;}
+.ctrl-btn.reset{border:1px solid #ffffff18;color:#ffffff44;}
+.iwm-row{margin-bottom:5px;}
+.iwm-labels{display:flex;justify-content:space-between;font-size:8px;margin-bottom:2px;}
+.bar-track{height:3px;background:#ffffff0a;border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;opacity:0.85;transition:width 0.3s;}
+.region-row{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+.region-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.region-info{flex:1;}
+.region-name-row{display:flex;justify-content:space-between;font-size:8px;}
+.region-desc{font-size:7px;color:#ffffff28;margin-top:1px;}
+.lineage-row{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #ffffff06;}
+.lineage-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.lineage-top{display:flex;justify-content:space-between;font-size:9px;}
+.lineage-detail{font-size:7px;color:#ffffff22;margin-top:2px;}
+.lineage-note{margin-top:6px;font-size:8px;color:#ffffff30;padding:5px 7px;background:#ffffff06;border-radius:5px;}
+.sim-footer{font-size:7px;color:#ffffff10;letter-spacing:0.12em;margin-top:4px;}
+.sim-hint{font-size:8px;color:#ffffff18;text-align:center;}
+@media(max-width:700px){canvas#simCanvas{width:100%;height:auto;}.sim-panel{width:100%;}}

@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+.idea/
+*.DotSettings.user
+release/
+publish/
+.DS_Store
+Thumbs.db

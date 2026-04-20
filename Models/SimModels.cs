@@ -44,10 +44,10 @@ public static class RegionDefs
 {
     public static readonly Dictionary<RegionName, RegionMeta> Meta = new()
     {
-        [RegionName.Amygdala]    = new("#f87171", "Amygdala",      "Emotional feeling · love · fear",          new[]{ +0.06, +0.20, +0.10, -0.08 }),
-        [RegionName.Hippocampus] = new("#60a5fa", "Hippocampus",   "Memory · what worked · recall",            new[]{ +0.12, -0.14, +0.08, +0.06 }),
-        [RegionName.Pfc]         = new("#a78bfa", "Prefrontal",    "Regulation · impulse control · planning",  new[]{ +0.09, -0.18, +0.05, +0.12 }),
-        [RegionName.Acc]         = new("#4ade80", "Ant. Cingulate","Empathy · mismatch · attunement",          new[]{ +0.10, -0.10, +0.16, +0.07 }),
+        [RegionName.Amygdala]    = new("#f87171", "Amygdala",      "Emotional feeling · love · fear",         new double[]{ +0.06, +0.20, +0.10, -0.08 }),
+        [RegionName.Hippocampus] = new("#60a5fa", "Hippocampus",   "Memory · what worked · recall",           new double[]{ +0.12, -0.14, +0.08, +0.06 }),
+        [RegionName.Pfc]         = new("#a78bfa", "Prefrontal",    "Regulation · impulse control · planning", new double[]{ +0.09, -0.18, +0.05, +0.12 }),
+        [RegionName.Acc]         = new("#4ade80", "Ant. Cingulate","Empathy · mismatch · attunement",         new double[]{ +0.10, -0.10, +0.16, +0.07 }),
     };
 
     public static readonly (RegionName From, RegionName To, string Key, double Base)[] InterBase =
@@ -68,7 +68,7 @@ public static class RegionDefs
 public class RegionNet
 {
     public const int N = 6;
-    public double[,] W         = new double[N, N];
+    public double[,] W          = new double[N, N];
     public double[]  Activation = new double[N];
     public double[]  Threshold  = new double[N];
     public int[]     Refractory = new int[N];
@@ -126,7 +126,8 @@ public class RegionNet
             W[i, j] = Math.Clamp(W[i, j] + d, -Sim.MaxW, Sim.MaxW);
         }
         double tot = 0; int cnt = 0;
-        for (int i = 0; i < N; i++) for (int j = 0; j < N; j++) { tot += Math.Abs(W[i, j]); cnt++; }
+        for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++) { tot += Math.Abs(W[i, j]); cnt++; }
         Training = Math.Min(1, (tot / cnt) / 0.8);
     }
 
@@ -360,8 +361,8 @@ public class Agent
                 Brain.Chem[Sim.OXY] = Math.Min(1, Brain.Chem[Sim.OXY] + 0.28);
                 Brain.Chem[Sim.COR] = Math.Max(0, Brain.Chem[Sim.COR] - 0.22);
                 Brain.Chem[Sim.DA]  = Math.Min(1, Brain.Chem[Sim.DA]  + 0.15);
-                Brain.Regions[RegionName.Amygdala].Hebbian(new[]{0,1}, new[]{2,3,4,5}, 1.4);
-                Brain.Regions[RegionName.Acc].Hebbian(new[]{0,1}, new[]{2,3,4,5}, 0.9);
+                Brain.Regions[RegionName.Amygdala].Hebbian(new int[]{0,1}, new int[]{2,3,4,5}, 1.4);
+                Brain.Regions[RegionName.Acc].Hebbian(new int[]{0,1}, new int[]{2,3,4,5}, 0.9);
                 Distress = null; DistressTimer = 0;
                 NextSignalIn = (int)(Sim.SignalInterval * 0.6 + _rng.NextDouble() * Sim.SignalInterval);
             }
@@ -369,7 +370,7 @@ public class Agent
             {
                 Record.Add(new(false, null, tick));
                 Brain.Chem[Sim.COR] = Math.Min(1, Brain.Chem[Sim.COR] + 0.18);
-                Brain.Regions[RegionName.Amygdala].Hebbian(new[]{0,1,2}, new[]{0,1,2}, 0.9);
+                Brain.Regions[RegionName.Amygdala].Hebbian(new int[]{0,1,2}, new int[]{0,1,2}, 0.9);
                 Distress = null; DistressTimer = 0;
                 NextSignalIn = (int)(Sim.SignalInterval * 0.4 + _rng.NextDouble() * Sim.SignalInterval);
             }
@@ -418,7 +419,7 @@ public class Agent
         if (CurrentTask == null) return;
         bool correct = ans == CurrentTask.Correct;
         double scale = correct ? 1.5 : 0.4;
-        Brain.Regions[CurrentTask.Region].Hebbian(new[]{0,1,2}, new[]{3,4,5}, scale);
+        Brain.Regions[CurrentTask.Region].Hebbian(new int[]{0,1,2}, new int[]{3,4,5}, scale);
         if (correct) { TaskScore = Math.Min(1, TaskScore+0.07); Brain.Chem[Sim.DA]=Math.Min(1,Brain.Chem[Sim.DA]+0.1); }
         else Brain.Chem[Sim.COR] = Math.Min(1, Brain.Chem[Sim.COR]+0.04);
         TasksDone.Add(CurrentTask.Id);
@@ -435,7 +436,7 @@ public class Agent
             {
                 Brain.Chem[Sim.OXY] = Math.Min(1, Brain.Chem[Sim.OXY]+0.025*Iwm.OtherWorth);
                 Bonds[other.Id] = Math.Min(1,(Bonds.TryGetValue(other.Id,out var b)?b:0)+0.004);
-                Brain.Regions[RegionName.Acc].Hebbian(new[]{0,1},new[]{3,4,5},0.4);
+                Brain.Regions[RegionName.Acc].Hebbian(new int[]{0,1}, new int[]{3,4,5}, 0.4);
             }
         }
         foreach (var key in Bonds.Keys.ToList())
@@ -447,10 +448,10 @@ public class Agent
         double edge = Math.Max(0,1-Math.Min(Math.Min(X,Sim.W-X),Math.Min(Y,Sim.H-Y))/70.0);
         var signals = new Dictionary<RegionName, double[]>
         {
-            [RegionName.Amygdala]    = new[]{ edge*0.4, Brain.Chem[Sim.COR]*0.2, 0,0,0,0 },
-            [RegionName.Hippocampus] = new[]{ Brain.Chem[Sim.DA]*0.15, 0,0,0,0,0 },
-            [RegionName.Pfc]         = new[]{ 0,0,0,0,0,0 },
-            [RegionName.Acc]         = new[]{ Brain.Chem[Sim.OXY]*0.2, 0,0,0,0,0 },
+            [RegionName.Amygdala]    = new double[]{ edge*0.4, Brain.Chem[Sim.COR]*0.2, 0,0,0,0 },
+            [RegionName.Hippocampus] = new double[]{ Brain.Chem[Sim.DA]*0.15, 0,0,0,0,0 },
+            [RegionName.Pfc]         = new double[]{ 0,0,0,0,0,0 },
+            [RegionName.Acc]         = new double[]{ Brain.Chem[Sim.OXY]*0.2, 0,0,0,0,0 },
         };
         Brain.Step(signals);
     }
